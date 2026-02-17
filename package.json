@@ -1,0 +1,15 @@
+{
+  "name": "app-counter-words",
+  "version": "1.0.0",
+  "description": "Text analysis web service",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "mammoth": "^1.7.1",
+    "multer": "^2.0.0"
+  }
+}

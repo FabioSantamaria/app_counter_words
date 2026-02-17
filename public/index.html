@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Write Better</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div>
+          <h1>Write Better Dashboard</h1>
+          <p>Upload a document or paste text to see repetition insights and improvements.</p>
+        </div>
+        <div class="summary">
+          <div class="summary-card">
+            <div class="summary-label">Total words</div>
+            <div class="summary-value" id="totalWords">0</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Unique words</div>
+            <div class="summary-value" id="uniqueWords">0</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Lexical diversity</div>
+            <div class="summary-value" id="lexicalDiversity">0</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Sentences</div>
+            <div class="summary-value" id="totalSentences">0</div>
+          </div>
+        </div>
+      </header>
+
+      <section class="panel">
+        <form id="analyzeForm" class="form">
+          <div class="field">
+            <label for="fileInput">Upload document</label>
+            <input id="fileInput" name="file" type="file" accept=".txt,.md,.docx" />
+          </div>
+          <div class="field">
+            <label for="textInput">Or paste text</label>
+            <textarea id="textInput" name="text" rows="8" placeholder="Paste your text here"></textarea>
+          </div>
+          <div class="options">
+            <label><input type="checkbox" name="repeatedWords" checked /> Repeated words</label>
+            <label><input type="checkbox" name="repeatedPhrases" checked /> Repeated phrases</label>
+            <label><input type="checkbox" name="similarSentences" checked /> Similar sentences</label>
+            <label><input type="checkbox" name="repeatedStarters" checked /> Repeated sentence starters</label>
+            <label><input type="checkbox" name="excludeCommon" checked /> Exclude common words</label>
+          </div>
+          <div class="field-inline">
+            <div>
+              <label for="customWords">Focus words (comma separated)</label>
+              <input id="customWords" name="customWords" type="text" placeholder="innovation, impact, growth" />
+            </div>
+            <div>
+              <label for="maxResults">Max results</label>
+              <input id="maxResults" name="maxResults" type="number" min="5" max="50" value="20" />
+            </div>
+          </div>
+          <button class="primary" type="submit">Analyze text</button>
+          <div id="status" class="status"></div>
+        </form>
+      </section>
+
+      <section class="grid">
+        <div class="card">
+          <h2>Top repeated words</h2>
+          <canvas id="wordChart"></canvas>
+        </div>
+        <div class="card">
+          <h2>Repeated phrases</h2>
+          <canvas id="phraseChart"></canvas>
+        </div>
+        <div class="card">
+          <h2>Repeated sentence starters</h2>
+          <div class="list" id="starterList"></div>
+        </div>
+        <div class="card">
+          <h2>Long sentences to tighten</h2>
+          <div class="list" id="longSentences"></div>
+        </div>
+        <div class="card wide">
+          <h2>Similar sentences</h2>
+          <div class="list" id="similarSentences"></div>
+        </div>
+        <div class="card wide">
+          <h2>Focus word counts</h2>
+          <div class="list" id="focusCounts"></div>
+        </div>
+      </section>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: app-counter-words
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
