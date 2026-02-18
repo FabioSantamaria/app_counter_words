@@ -4,19 +4,17 @@ const statusEl = document.getElementById("status")
 const summaryIds = ["totalWords", "uniqueWords", "lexicalDiversity", "totalSentences"]
 const summaryEls = Object.fromEntries(summaryIds.map((id) => [id, document.getElementById(id)]))
 
+const phraseList = document.getElementById("phraseList")
 const starterList = document.getElementById("starterList")
 const longSentences = document.getElementById("longSentences")
 const similarSentences = document.getElementById("similarSentences")
 const focusCounts = document.getElementById("focusCounts")
+const wordCloudContainer = document.getElementById("wordCloud")
 
-const wordChartCtx = document.getElementById("wordChart")
-const phraseChartCtx = document.getElementById("phraseChart")
 const submitButton = form.querySelector('button[type="submit"]')
 const exportJsonButton = document.getElementById("exportJson")
 const exportCsvButton = document.getElementById("exportCsv")
 
-let wordChart
-let phraseChart
 let latestAnalysis = null
 
 function setStatus(message, kind = "info") {
@@ -62,31 +60,80 @@ function renderKeyValueList(container, items, emptyMessage) {
   })
 }
 
-function updateChart(chartRef, ctx, labels, data, label) {
-  if (chartRef) {
-    chartRef.destroy()
+function renderFrequencyList(container, items, emptyMessage, isPhrase = false) {
+  clearList(container)
+  if (!items.length) {
+    const empty = document.createElement("div")
+    empty.className = "empty"
+    empty.textContent = emptyMessage
+    container.appendChild(empty)
+    return
   }
-  return new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels,
-      datasets: [
-        {
-          label,
-          data,
-          backgroundColor: "#5b7cfa"
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false }
-      },
-      scales: {
-        y: { beginAtZero: true }
-      }
-    }
+
+  const maxCount = Math.max(...items.map((i) => i.count)) || 1
+
+  items.forEach((item) => {
+    const row = document.createElement("div")
+    row.className = "freq-row"
+    
+    const label = isPhrase ? `${item.value} (${item.n}-gram)` : item.value
+    const percentage = (item.count / maxCount) * 100
+
+    row.innerHTML = `
+      <div class="freq-bar-container">
+        <div class="freq-bar" style="width: ${percentage}%"></div>
+        <span class="freq-text" title="${label}">${label}</span>
+      </div>
+      <span class="freq-count">${item.count}</span>
+    `
+    container.appendChild(row)
+  })
+}
+
+function renderSimilarSentences(container, items, emptyMessage) {
+  clearList(container)
+  if (!items.length) {
+    const empty = document.createElement("div")
+    empty.className = "empty"
+    empty.textContent = emptyMessage
+    container.appendChild(empty)
+    return
+  }
+  items.forEach((item) => {
+    const card = document.createElement("div")
+    card.className = "similarity-card"
+    
+    const percentage = Math.round(item.score * 100)
+    
+    card.innerHTML = `
+      <div class="similarity-header">
+        <span>Similarity Match</span>
+        <span class="similarity-score">${percentage}%</span>
+      </div>
+      <div class="similarity-text">A: ${item.sentenceA}</div>
+      <div class="similarity-text">B: ${item.sentenceB}</div>
+    `
+    container.appendChild(card)
+  })
+}
+
+function renderLongSentences(container, items, emptyMessage) {
+  clearList(container)
+  if (!items.length) {
+    const empty = document.createElement("div")
+    empty.className = "empty"
+    empty.textContent = emptyMessage
+    container.appendChild(empty)
+    return
+  }
+  items.forEach((item) => {
+    const row = document.createElement("div")
+    row.className = "list-item warning"
+    row.innerHTML = `
+      <span>${item.sentence}</span>
+      <span class="pill">${item.words} words</span>
+    `
+    container.appendChild(row)
   })
 }
 
@@ -95,6 +142,31 @@ function updateSummary(totals) {
   summaryEls.uniqueWords.textContent = totals.uniqueWords
   summaryEls.lexicalDiversity.textContent = totals.lexicalDiversity
   summaryEls.totalSentences.textContent = totals.totalSentences
+}
+
+function renderWordCloud(items) {
+  wordCloudContainer.innerHTML = ""
+  if (!items.length) {
+    wordCloudContainer.innerHTML = '<div class="empty" style="padding: 20px; text-align: center;">No words to display.</div>'
+    return
+  }
+  
+  // Scale factor based on canvas size
+  const maxCount = Math.max(...items.map(i => i.count))
+  const list = items.map(item => [item.value, 15 + ((item.count / maxCount) * 60)])
+
+  WordCloud(wordCloudContainer, { 
+    list: list,
+    gridSize: 8,
+    weightFactor: 1,
+    fontFamily: 'Inter, system-ui, sans-serif',
+    color: (word, weight, fontSize) => {
+      const colors = ['#4f46e5', '#6366f1', '#818cf8', '#3730a3']
+      return colors[Math.floor(Math.random() * colors.length)]
+    },
+    rotateRatio: 0,
+    backgroundColor: '#fafafa'
+  })
 }
 
 function buildPhraseLabel(item) {
@@ -200,28 +272,19 @@ form.addEventListener("submit", async (event) => {
 
     updateSummary(payload.totals)
     latestAnalysis = payload
-    const wordLabels = payload.repeatedWords.map((item) => item.value)
-    const wordCounts = payload.repeatedWords.map((item) => item.count)
-    wordChart = updateChart(wordChart, wordChartCtx, wordLabels, wordCounts, "Repeated words")
-
-    const phraseLabels = payload.repeatedPhrases.map(buildPhraseLabel)
-    const phraseCounts = payload.repeatedPhrases.map((item) => item.count)
-    phraseChart = updateChart(phraseChart, phraseChartCtx, phraseLabels, phraseCounts, "Repeated phrases")
-
+    
+    // Render Visualizations
+    renderWordCloud(payload.repeatedWords)
+    renderFrequencyList(phraseList, payload.repeatedPhrases, "No repeated phrases found.", true)
     renderKeyValueList(starterList, payload.repeatedStarters, "No repeated starters found.")
-    renderList(longSentences, payload.longSentences.map((item) => item.sentence), "No long sentences flagged.")
-    renderList(
-      similarSentences,
-      payload.similarSentences.map(
-        (item) => `${item.score} · ${item.sentenceA} / ${item.sentenceB}`
-      ),
-      "No similar sentences found."
-    )
+    renderLongSentences(longSentences, payload.longSentences, "No long sentences flagged.")
+    renderSimilarSentences(similarSentences, payload.similarSentences, "No similar sentences found.")
     renderKeyValueList(focusCounts, payload.customCounts, "No focus words provided.")
 
     setExportState(true)
     setStatus("Analysis complete.", "success")
   } catch (error) {
+    console.error(error)
     setStatus("Failed to analyze text.", "error")
   } finally {
     submitButton.disabled = false

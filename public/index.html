@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Write Better</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
   </head>
   <body>
     <div class="app">
       <header class="header">
         <div>
           <h1>Write Better Dashboard</h1>
-          <p>Upload a document or paste text to see repetition insights and improvements.</p>
+          <p>Analyze your text for repetitions, flow, and clarity.</p>
         </div>
         <div class="summary">
           <div class="summary-card">
@@ -37,12 +37,12 @@
       <section class="panel">
         <form id="analyzeForm" class="form">
           <div class="field">
-            <label for="fileInput">Upload document</label>
+            <label for="fileInput">Upload document (.txt, .md, .docx)</label>
             <input id="fileInput" name="file" type="file" accept=".txt,.md,.docx" />
           </div>
           <div class="field">
-            <label for="textInput">Or paste text</label>
-            <textarea id="textInput" name="text" rows="8" placeholder="Paste your text here"></textarea>
+            <label for="textInput">Or paste text directly</label>
+            <textarea id="textInput" name="text" rows="8" placeholder="Paste your text here..."></textarea>
           </div>
           <div class="options">
             <label><input type="checkbox" name="repeatedWords" checked /> Repeated words</label>
@@ -54,7 +54,7 @@
           <div class="field-inline">
             <div>
               <label for="customWords">Focus words (comma separated)</label>
-              <input id="customWords" name="customWords" type="text" placeholder="innovation, impact, growth" />
+              <input id="customWords" name="customWords" type="text" placeholder="e.g. innovation, impact, growth" />
             </div>
             <div>
               <label for="maxResults">Max results</label>
@@ -63,36 +63,38 @@
           </div>
           <div class="actions">
             <button class="primary" type="submit">Analyze text</button>
-            <button class="secondary" type="button" id="exportJson" disabled>Export JSON</button>
-            <button class="secondary" type="button" id="exportCsv" disabled>Export CSV</button>
+            <div class="export-controls">
+              <button id="exportJson" class="secondary" type="button" disabled>Export JSON</button>
+              <button id="exportCsv" class="secondary" type="button" disabled>Export CSV</button>
+            </div>
           </div>
           <div id="status" class="status"></div>
         </form>
       </section>
 
-      <section class="rows">
-        <div class="card">
-          <h2>Top repeated words</h2>
-          <canvas id="wordChart"></canvas>
+      <section class="grid">
+        <div class="card wide">
+          <h2>Top Repeated Words (Word Cloud)</h2>
+          <div id="wordCloud" class="cloud-container"></div>
+        </div>
+        <div class="card wide">
+          <h2>Repeated Phrases</h2>
+          <div class="list" id="phraseList"></div>
         </div>
         <div class="card">
-          <h2>Repeated phrases</h2>
-          <canvas id="phraseChart"></canvas>
-        </div>
-        <div class="card">
-          <h2>Repeated sentence starters</h2>
+          <h2>Repeated Sentence Starters</h2>
           <div class="list" id="starterList"></div>
         </div>
         <div class="card">
-          <h2>Long sentences to tighten</h2>
+          <h2>Long Sentences to Tighten</h2>
           <div class="list" id="longSentences"></div>
         </div>
-        <div class="card">
-          <h2>Similar sentences</h2>
+        <div class="card wide">
+          <h2>Similar Sentences</h2>
           <div class="list" id="similarSentences"></div>
         </div>
-        <div class="card">
-          <h2>Focus word counts</h2>
+        <div class="card wide">
+          <h2>Focus Word Counts</h2>
           <div class="list" id="focusCounts"></div>
         </div>
       </section>
