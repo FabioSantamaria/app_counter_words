@@ -61,12 +61,16 @@
               <input id="maxResults" name="maxResults" type="number" min="5" max="50" value="20" />
             </div>
           </div>
-          <button class="primary" type="submit">Analyze text</button>
+          <div class="actions">
+            <button class="primary" type="submit">Analyze text</button>
+            <button class="secondary" type="button" id="exportJson" disabled>Export JSON</button>
+            <button class="secondary" type="button" id="exportCsv" disabled>Export CSV</button>
+          </div>
           <div id="status" class="status"></div>
         </form>
       </section>
 
-      <section class="grid">
+      <section class="rows">
         <div class="card">
           <h2>Top repeated words</h2>
           <canvas id="wordChart"></canvas>
@@ -83,11 +87,11 @@
           <h2>Long sentences to tighten</h2>
           <div class="list" id="longSentences"></div>
         </div>
-        <div class="card wide">
+        <div class="card">
           <h2>Similar sentences</h2>
           <div class="list" id="similarSentences"></div>
         </div>
-        <div class="card wide">
+        <div class="card">
           <h2>Focus word counts</h2>
           <div class="list" id="focusCounts"></div>
         </div>

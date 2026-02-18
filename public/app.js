@@ -12,9 +12,12 @@ const focusCounts = document.getElementById("focusCounts")
 const wordChartCtx = document.getElementById("wordChart")
 const phraseChartCtx = document.getElementById("phraseChart")
 const submitButton = form.querySelector('button[type="submit"]')
+const exportJsonButton = document.getElementById("exportJson")
+const exportCsvButton = document.getElementById("exportCsv")
 
 let wordChart
 let phraseChart
+let latestAnalysis = null
 
 function setStatus(message, kind = "info") {
   statusEl.textContent = message
@@ -98,10 +101,79 @@ function buildPhraseLabel(item) {
   return `${item.value} (${item.n}-gram)`
 }
 
+function csvEscape(value) {
+  const text = String(value ?? "")
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`
+  }
+  return text
+}
+
+function buildCsv(payload) {
+  const lines = []
+  lines.push(["section", "metric", "value"].join(","))
+  Object.entries(payload.totals).forEach(([key, value]) => {
+    lines.push([csvEscape("totals"), csvEscape(key), csvEscape(value)].join(","))
+  })
+  payload.repeatedWords.forEach((item) => {
+    lines.push([csvEscape("repeatedWords"), csvEscape(item.value), csvEscape(item.count)].join(","))
+  })
+  payload.repeatedPhrases.forEach((item) => {
+    lines.push([csvEscape("repeatedPhrases"), csvEscape(buildPhraseLabel(item)), csvEscape(item.count)].join(","))
+  })
+  payload.repeatedStarters.forEach((item) => {
+    lines.push([csvEscape("repeatedStarters"), csvEscape(item.value), csvEscape(item.count)].join(","))
+  })
+  payload.longSentences.forEach((item) => {
+    lines.push([csvEscape("longSentences"), csvEscape(item.sentence), csvEscape(item.words)].join(","))
+  })
+  payload.similarSentences.forEach((item) => {
+    lines.push([csvEscape("similarSentences"), csvEscape(item.sentenceA), csvEscape(item.sentenceB)].join(","))
+    lines.push([csvEscape("similarSentencesScore"), csvEscape(item.sentenceA), csvEscape(item.score)].join(","))
+  })
+  payload.customCounts.forEach((item) => {
+    lines.push([csvEscape("focusCounts"), csvEscape(item.value), csvEscape(item.count)].join(","))
+  })
+  return lines.join("\n")
+}
+
+function downloadFile(filename, content, type) {
+  const blob = new Blob([content], { type })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+function setExportState(enabled) {
+  exportJsonButton.disabled = !enabled
+  exportCsvButton.disabled = !enabled
+}
+
+function buildFilename(suffix) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)
+  return `analysis-${stamp}.${suffix}`
+}
+
+exportJsonButton.addEventListener("click", () => {
+  if (!latestAnalysis) return
+  downloadFile(buildFilename("json"), JSON.stringify(latestAnalysis, null, 2), "application/json")
+})
+
+exportCsvButton.addEventListener("click", () => {
+  if (!latestAnalysis) return
+  downloadFile(buildFilename("csv"), buildCsv(latestAnalysis), "text/csv")
+})
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault()
   setStatus("Analyzing text...", "info")
   submitButton.disabled = true
+  setExportState(false)
 
   const formData = new FormData(form)
   form.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
@@ -127,6 +199,7 @@ form.addEventListener("submit", async (event) => {
     }
 
     updateSummary(payload.totals)
+    latestAnalysis = payload
     const wordLabels = payload.repeatedWords.map((item) => item.value)
     const wordCounts = payload.repeatedWords.map((item) => item.count)
     wordChart = updateChart(wordChart, wordChartCtx, wordLabels, wordCounts, "Repeated words")
@@ -146,6 +219,7 @@ form.addEventListener("submit", async (event) => {
     )
     renderKeyValueList(focusCounts, payload.customCounts, "No focus words provided.")
 
+    setExportState(true)
     setStatus("Analysis complete.", "success")
   } catch (error) {
     setStatus("Failed to analyze text.", "error")
