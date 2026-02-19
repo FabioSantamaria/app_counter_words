@@ -1,105 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Write Better</title>
-    <link rel="stylesheet" href="styles.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
-  </head>
-  <body>
-    <div class="app">
-      <header class="header">
-        <div>
-          <h1>Write Better Dashboard</h1>
-          <p>Analyze your text for repetitions, flow, and clarity.</p>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Text Analyzer Pro</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Main Document Area -->
+    <main class="document-area">
+      <div class="toolbar">
+        <h1>Text Analyzer <span class="badge">Pro</span></h1>
+        <div class="doc-stats" id="docStats">
+          <span>0 words</span>
+          <span>0 sentences</span>
+          <span>0 characters</span>
         </div>
-        <div class="summary">
-          <div class="summary-card">
-            <div class="summary-label">Total words</div>
-            <div class="summary-value" id="totalWords">0</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Unique words</div>
-            <div class="summary-value" id="uniqueWords">0</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Lexical diversity</div>
-            <div class="summary-value" id="lexicalDiversity">0</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Sentences</div>
-            <div class="summary-value" id="totalSentences">0</div>
-          </div>
-        </div>
-      </header>
+      </div>
+      <div id="editorContainer" class="editor-container">
+        <div id="textDisplay" class="paper-view" contenteditable="true" spellcheck="false" placeholder="Paste your text here or upload a file..."></div>
+      </div>
+    </main>
 
-      <section class="panel">
-        <form id="analyzeForm" class="form">
-          <div class="field">
-            <label for="fileInput">Upload document (.txt, .md, .docx)</label>
-            <input id="fileInput" name="file" type="file" accept=".txt,.md,.docx" />
-          </div>
-          <div class="field">
-            <label for="textInput">Or paste text directly</label>
-            <textarea id="textInput" name="text" rows="8" placeholder="Paste your text here..."></textarea>
-          </div>
-          <div class="options">
-            <label><input type="checkbox" name="repeatedWords" checked /> Repeated words</label>
-            <label><input type="checkbox" name="repeatedPhrases" checked /> Repeated phrases</label>
-            <label><input type="checkbox" name="similarSentences" checked /> Similar sentences</label>
-            <label><input type="checkbox" name="repeatedStarters" checked /> Repeated sentence starters</label>
-            <label><input type="checkbox" name="excludeCommon" checked /> Exclude common words</label>
-          </div>
-          <div class="field-inline">
-            <div>
-              <label for="customWords">Focus words (comma separated)</label>
-              <input id="customWords" name="customWords" type="text" placeholder="e.g. innovation, impact, growth" />
-            </div>
-            <div>
-              <label for="maxResults">Max results</label>
-              <input id="maxResults" name="maxResults" type="number" min="5" max="50" value="20" />
-            </div>
-          </div>
-          <div class="actions">
-            <button class="primary" type="submit">Analyze text</button>
-            <div class="export-controls">
-              <button id="exportJson" class="secondary" type="button" disabled>Export JSON</button>
-              <button id="exportCsv" class="secondary" type="button" disabled>Export CSV</button>
-            </div>
-          </div>
-          <div id="status" class="status"></div>
-        </form>
-      </section>
+    <!-- Analysis Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="input">Input</button>
+          <button class="tab-btn" data-tab="words">Words</button>
+          <button class="tab-btn" data-tab="sentences">Sentences</button>
+        </div>
+      </div>
 
-      <section class="grid">
-        <div class="card wide">
-          <h2>Top Repeated Words (Word Cloud)</h2>
-          <div id="wordCloud" class="cloud-container"></div>
-        </div>
-        <div class="card wide">
-          <h2>Repeated Phrases</h2>
-          <div class="list" id="phraseList"></div>
-        </div>
-        <div class="card">
-          <h2>Repeated Sentence Starters</h2>
-          <div class="list" id="starterList"></div>
-        </div>
-        <div class="card">
-          <h2>Long Sentences to Tighten</h2>
-          <div class="list" id="longSentences"></div>
-        </div>
-        <div class="card wide">
-          <h2>Similar Sentences</h2>
-          <div class="list" id="similarSentences"></div>
-        </div>
-        <div class="card wide">
-          <h2>Focus Word Counts</h2>
-          <div class="list" id="focusCounts"></div>
-        </div>
-      </section>
-    </div>
+      <div class="sidebar-content">
+        <!-- Input Tab -->
+        <div id="tab-input" class="tab-pane active">
+          <form id="analyzeForm">
+            <div class="form-group">
+              <label for="file">Upload Document (DOCX/TXT)</label>
+              <input type="file" id="file" name="file" accept=".txt,.md,.docx" />
+            </div>
 
-    <script src="app.js"></script>
-  </body>
+            <div class="divider"><span>OR</span></div>
+
+            <div class="form-group">
+              <p class="help-text">Paste text directly into the editor on the left.</p>
+              <button type="button" id="loadSample" class="btn-link">Load Sample Text</button>
+            </div>
+
+            <div class="options-group">
+              <h3>Analysis Options</h3>
+              <label class="checkbox-label">
+                <input type="checkbox" name="repeatedWords" checked />
+                <span>Repeated Words</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" name="repeatedPhrases" checked />
+                <span>Repeated Phrases</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" name="excludeCommon" checked />
+                <span>Exclude Stopwords</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" name="similarSentences" checked />
+                <span>Similar Sentences</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" name="repeatedStarters" checked />
+                <span>Repeated Starters</span>
+              </label>
+            </div>
+
+            <div class="form-group">
+              <label for="customWords">Focus Words (comma separated)</label>
+              <input type="text" id="customWords" name="customWords" placeholder="e.g. however, therefore" />
+            </div>
+
+            <button type="submit" class="btn-primary">Analyze Text</button>
+            <div id="status" class="status-message"></div>
+          </form>
+          
+          <div class="export-actions">
+            <button id="exportJson" class="btn-secondary" disabled>Export JSON</button>
+            <button id="exportCsv" class="btn-secondary" disabled>Export CSV</button>
+          </div>
+        </div>
+
+        <!-- Words Tab -->
+        <div id="tab-words" class="tab-pane">
+          <div class="section-header">
+            <h3>Frequency</h3>
+            <span class="pill" id="uniqueWordsCount">0 unique</span>
+          </div>
+          <div class="list-container" id="freqList">
+            <div class="empty">Run analysis to see data.</div>
+          </div>
+        </div>
+
+        <!-- Sentences Tab -->
+        <div id="tab-sentences" class="tab-pane">
+          <div class="section-block">
+            <h3>Structure Issues</h3>
+            <div class="list-container" id="structureList">
+              <div class="empty">Run analysis to see data.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script src="app.js"></script>
+</body>
 </html>

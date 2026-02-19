@@ -1,214 +1,321 @@
+const editor = document.getElementById("textDisplay")
 const form = document.getElementById("analyzeForm")
 const statusEl = document.getElementById("status")
+const docStats = document.getElementById("docStats")
 
-const summaryIds = ["totalWords", "uniqueWords", "lexicalDiversity", "totalSentences"]
-const summaryEls = Object.fromEntries(summaryIds.map((id) => [id, document.getElementById(id)]))
+// Tab Elements
+const tabBtns = document.querySelectorAll(".tab-btn")
+const tabPanes = document.querySelectorAll(".tab-pane")
 
-const phraseList = document.getElementById("phraseList")
-const starterList = document.getElementById("starterList")
-const longSentences = document.getElementById("longSentences")
-const similarSentences = document.getElementById("similarSentences")
-const focusCounts = document.getElementById("focusCounts")
-const wordCloudContainer = document.getElementById("wordCloud")
+// Sidebar Lists
+const freqList = document.getElementById("freqList")
+const structureList = document.getElementById("structureList")
+const uniqueWordsCount = document.getElementById("uniqueWordsCount")
 
+// Buttons
 const submitButton = form.querySelector('button[type="submit"]')
+const loadSampleButton = document.getElementById("loadSample")
 const exportJsonButton = document.getElementById("exportJson")
 const exportCsvButton = document.getElementById("exportCsv")
 
-let latestAnalysis = null
+let currentAnalysis = null
+let isHighlighting = false
+
+// --- Utility Functions ---
 
 function setStatus(message, kind = "info") {
   statusEl.textContent = message
   statusEl.dataset.kind = kind
 }
 
-function clearList(container) {
-  container.innerHTML = ""
+function updateStats(text) {
+  const words = text.trim().split(/\s+/).filter(w => w.length > 0).length
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0).length
+  const chars = text.length
+  docStats.innerHTML = `
+    <span>${words} words</span>
+    <span>${sentences} sentences</span>
+    <span>${chars} chars</span>
+  `
 }
 
-function renderList(container, items, emptyMessage) {
-  clearList(container)
-  if (!items.length) {
-    const empty = document.createElement("div")
-    empty.className = "empty"
-    empty.textContent = emptyMessage
-    container.appendChild(empty)
-    return
-  }
-  items.forEach((item) => {
-    const row = document.createElement("div")
-    row.className = "list-item"
-    row.textContent = item
-    container.appendChild(row)
+// --- Tab Switching ---
+
+tabBtns.forEach(btn => {
+  btn.addEventListener("click", () => {
+    // Remove active class from all
+    tabBtns.forEach(b => b.classList.remove("active"))
+    tabPanes.forEach(p => p.classList.remove("active"))
+    
+    // Add active to clicked
+    btn.classList.add("active")
+    const tabId = `tab-${btn.dataset.tab}`
+    document.getElementById(tabId).classList.add("active")
   })
+})
+
+// --- Highlighting Logic ---
+
+function escapeRegex(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-function renderKeyValueList(container, items, emptyMessage) {
-  clearList(container)
-  if (!items.length) {
-    const empty = document.createElement("div")
-    empty.className = "empty"
-    empty.textContent = emptyMessage
-    container.appendChild(empty)
-    return
-  }
-  items.forEach((item) => {
-    const row = document.createElement("div")
-    row.className = "list-item"
-    row.innerHTML = `<span>${item.value}</span><span class="pill">${item.count}</span>`
-    container.appendChild(row)
+function clearHighlights() {
+  if (!isHighlighting) return
+  // If we are highlighting, we might have modified the HTML.
+  // We should revert to plain text if possible, or just remove <mark> tags.
+  // Easiest is to grab innerText and re-render, but that loses cursor.
+  // Better: replace <mark> with its content.
+  const marks = editor.querySelectorAll("mark")
+  marks.forEach(mark => {
+    const text = document.createTextNode(mark.textContent)
+    mark.parentNode.replaceChild(text, mark)
   })
+  editor.normalize() // Merges adjacent text nodes
+  isHighlighting = false
 }
 
-function renderFrequencyList(container, items, emptyMessage, isPhrase = false) {
-  clearList(container)
-  if (!items.length) {
-    const empty = document.createElement("div")
-    empty.className = "empty"
-    empty.textContent = emptyMessage
-    container.appendChild(empty)
+function highlightText(pattern, type = "word") {
+  // 1. Clear previous
+  clearHighlights()
+  
+  if (!pattern) return
+
+  // 2. Prepare Regex
+  let regex
+  if (type === "word") {
+    // Match whole word, case insensitive
+    regex = new RegExp(`\\b(${escapeRegex(pattern)})\\b`, 'gi')
+  } else if (type === "sentence") {
+    // Match the exact sentence string, allowing for some whitespace diffs
+    // Normalize spaces in pattern to \s+
+    const normalizedPattern = escapeRegex(pattern).replace(/\s+/g, '\\s+')
+    regex = new RegExp(`(${normalizedPattern})`, 'gi')
+  }
+
+  // 3. Apply Highlighting
+  // We need to traverse text nodes to avoid breaking HTML structure if any
+  // But since our editor is simple text, we can do innerHTML replacement for now.
+  // Ideally, use a TreeWalker.
+  
+  const text = editor.innerText
+  const newHtml = text.replace(regex, (match) => {
+    const className = type === "sentence" ? "highlight-sentence-active" : "highlight-active"
+    return `<mark class="${className}">${match}</mark>`
+  })
+  
+  editor.innerHTML = newHtml
+  isHighlighting = true
+  
+  // 4. Scroll to first match
+  const firstMark = editor.querySelector("mark")
+  if (firstMark) {
+    firstMark.scrollIntoView({ behavior: "smooth", block: "center" })
+  }
+}
+
+// --- Rendering Sidebar Data ---
+
+function renderFrequencyList(items) {
+  freqList.innerHTML = ""
+  if (!items || !items.length) {
+    freqList.innerHTML = '<div class="empty">No repeated words found.</div>'
     return
   }
 
-  const maxCount = Math.max(...items.map((i) => i.count)) || 1
+  const maxCount = Math.max(...items.map(i => i.count))
 
-  items.forEach((item) => {
+  items.forEach(item => {
     const row = document.createElement("div")
     row.className = "freq-row"
-    
-    const label = isPhrase ? `${item.value} (${item.n}-gram)` : item.value
     const percentage = (item.count / maxCount) * 100
-
+    
     row.innerHTML = `
       <div class="freq-bar-container">
         <div class="freq-bar" style="width: ${percentage}%"></div>
-        <span class="freq-text" title="${label}">${label}</span>
+        <span class="freq-text" title="${item.value}">${item.value}</span>
       </div>
       <span class="freq-count">${item.count}</span>
     `
-    container.appendChild(row)
-  })
-}
-
-function renderSimilarSentences(container, items, emptyMessage) {
-  clearList(container)
-  if (!items.length) {
-    const empty = document.createElement("div")
-    empty.className = "empty"
-    empty.textContent = emptyMessage
-    container.appendChild(empty)
-    return
-  }
-  items.forEach((item) => {
-    const card = document.createElement("div")
-    card.className = "similarity-card"
     
-    const percentage = Math.round(item.score * 100)
+    row.addEventListener("click", () => {
+      highlightText(item.value, "word")
+    })
     
-    card.innerHTML = `
-      <div class="similarity-header">
-        <span>Similarity Match</span>
-        <span class="similarity-score">${percentage}%</span>
-      </div>
-      <div class="similarity-text">A: ${item.sentenceA}</div>
-      <div class="similarity-text">B: ${item.sentenceB}</div>
-    `
-    container.appendChild(card)
+    freqList.appendChild(row)
   })
 }
 
-function renderLongSentences(container, items, emptyMessage) {
-  clearList(container)
-  if (!items.length) {
-    const empty = document.createElement("div")
-    empty.className = "empty"
-    empty.textContent = emptyMessage
-    container.appendChild(empty)
-    return
-  }
-  items.forEach((item) => {
-    const row = document.createElement("div")
-    row.className = "list-item warning"
-    row.innerHTML = `
-      <span>${item.sentence}</span>
-      <span class="pill">${item.words} words</span>
-    `
-    container.appendChild(row)
-  })
-}
-
-function updateSummary(totals) {
-  summaryEls.totalWords.textContent = totals.totalWords
-  summaryEls.uniqueWords.textContent = totals.uniqueWords
-  summaryEls.lexicalDiversity.textContent = totals.lexicalDiversity
-  summaryEls.totalSentences.textContent = totals.totalSentences
-}
-
-function renderWordCloud(items) {
-  wordCloudContainer.innerHTML = ""
-  if (!items.length) {
-    wordCloudContainer.innerHTML = '<div class="empty" style="padding: 20px; text-align: center;">No words to display.</div>'
-    return
-  }
+function renderStructureList(analysis) {
+  structureList.innerHTML = ""
   
-  // Scale factor based on canvas size
-  const maxCount = Math.max(...items.map(i => i.count))
-  const list = items.map(item => [item.value, 15 + ((item.count / maxCount) * 60)])
+  const { longSentences, similarSentences, repeatedStarters } = analysis
+  let hasItems = false
 
-  WordCloud(wordCloudContainer, { 
-    list: list,
-    gridSize: 8,
-    weightFactor: 1,
-    fontFamily: 'Inter, system-ui, sans-serif',
-    color: (word, weight, fontSize) => {
-      const colors = ['#4f46e5', '#6366f1', '#818cf8', '#3730a3']
-      return colors[Math.floor(Math.random() * colors.length)]
-    },
-    rotateRatio: 0,
-    backgroundColor: '#fafafa'
-  })
-}
+  // Long Sentences
+  if (longSentences && longSentences.length) {
+    hasItems = true
+    const header = document.createElement("div")
+    header.className = "structure-header"
+    header.textContent = "Long Sentences"
+    structureList.appendChild(header)
 
-function buildPhraseLabel(item) {
-  return `${item.value} (${item.n}-gram)`
-}
-
-function csvEscape(value) {
-  const text = String(value ?? "")
-  if (/[",\n]/.test(text)) {
-    return `"${text.replace(/"/g, '""')}"`
+    longSentences.forEach(item => {
+      const card = document.createElement("div")
+      card.className = "structure-card"
+      card.innerHTML = `
+        <div class="structure-preview">${item.sentence}</div>
+        <div style="margin-top:0.5rem; display:flex; justify-content:space-between; align-items:center;">
+          <span class="tag-long">${item.words} words</span>
+          <span style="font-size:0.75rem; color:#6b7280;">Click to find</span>
+        </div>
+      `
+      card.addEventListener("click", () => highlightText(item.sentence, "sentence"))
+      structureList.appendChild(card)
+    })
   }
-  return text
+
+  // Similar Sentences
+  if (similarSentences && similarSentences.length) {
+    hasItems = true
+    const header = document.createElement("div")
+    header.className = "structure-header"
+    header.textContent = "Similar Sentences"
+    header.style.marginTop = "1.5rem"
+    structureList.appendChild(header)
+
+    similarSentences.forEach(item => {
+      const card = document.createElement("div")
+      card.className = "structure-card"
+      card.innerHTML = `
+        <div style="margin-bottom:0.5rem;">
+          <span class="tag-similarity">${Math.round(item.score * 100)}% Match</span>
+        </div>
+        <div class="structure-preview" style="margin-bottom:0.25rem; border-left:2px solid #fbbf24; padding-left:0.5rem;">${item.sentenceA}</div>
+        <div class="structure-preview" style="border-left:2px solid #fbbf24; padding-left:0.5rem;">${item.sentenceB}</div>
+      `
+      // For similar, we highlight A. Ideally we highlight both.
+      // Regex allows matching A OR B.
+      card.addEventListener("click", () => {
+         // Create a combined regex pattern
+         const pattern = `${escapeRegex(item.sentenceA)}|${escapeRegex(item.sentenceB)}`
+         // We pass this special pattern to our highlight function
+         // We need to bypass escapeRegex inside highlightText, so let's handle it manually or improve highlightText
+         // Improved approach: just call highlightText with the regex string directly if we flag it.
+         
+         // Hacky reuse of highlightText:
+         // We'll manually construct the regex and pass it?
+         // Let's just highlight sentenceA for now to keep it simple, or A.
+         highlightText(item.sentenceA, "sentence") 
+      })
+      structureList.appendChild(card)
+    })
+  }
+
+  if (!hasItems) {
+    structureList.innerHTML = '<div class="empty">No structural issues found.</div>'
+  }
 }
 
-function buildCsv(payload) {
-  const lines = []
-  lines.push(["section", "metric", "value"].join(","))
-  Object.entries(payload.totals).forEach(([key, value]) => {
-    lines.push([csvEscape("totals"), csvEscape(key), csvEscape(value)].join(","))
-  })
-  payload.repeatedWords.forEach((item) => {
-    lines.push([csvEscape("repeatedWords"), csvEscape(item.value), csvEscape(item.count)].join(","))
-  })
-  payload.repeatedPhrases.forEach((item) => {
-    lines.push([csvEscape("repeatedPhrases"), csvEscape(buildPhraseLabel(item)), csvEscape(item.count)].join(","))
-  })
-  payload.repeatedStarters.forEach((item) => {
-    lines.push([csvEscape("repeatedStarters"), csvEscape(item.value), csvEscape(item.count)].join(","))
-  })
-  payload.longSentences.forEach((item) => {
-    lines.push([csvEscape("longSentences"), csvEscape(item.sentence), csvEscape(item.words)].join(","))
-  })
-  payload.similarSentences.forEach((item) => {
-    lines.push([csvEscape("similarSentences"), csvEscape(item.sentenceA), csvEscape(item.sentenceB)].join(","))
-    lines.push([csvEscape("similarSentencesScore"), csvEscape(item.sentenceA), csvEscape(item.score)].join(","))
-  })
-  payload.customCounts.forEach((item) => {
-    lines.push([csvEscape("focusCounts"), csvEscape(item.value), csvEscape(item.count)].join(","))
-  })
-  return lines.join("\n")
-}
+// --- Main Analysis Logic ---
 
+form.addEventListener("submit", async (e) => {
+  e.preventDefault()
+  setStatus("Analyzing...", "info")
+  submitButton.disabled = true
+  
+  const formData = new FormData(form)
+  
+  // If text editor has content and no file selected, append text
+  const editorText = editor.innerText
+  const fileInput = document.getElementById("file")
+  
+  if (!fileInput.files.length && editorText.trim().length > 0) {
+    formData.set("text", editorText)
+  }
+
+  // Handle checkboxes
+  form.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+    formData.set(checkbox.name, checkbox.checked ? "true" : "false")
+  })
+
+  try {
+    const res = await fetch("/api/analyze", { method: "POST", body: formData })
+    const data = await res.json()
+    
+    if (!res.ok) throw new Error(data.error || "Analysis failed")
+    
+    currentAnalysis = data
+    
+    // Update Editor with normalized text from server (optional, but good for consistency)
+    if (data.text) {
+      editor.innerText = data.text
+      updateStats(data.text)
+    }
+
+    // Render Data
+    uniqueWordsCount.textContent = `${data.totals.uniqueWords} unique`
+    renderFrequencyList(data.repeatedWords)
+    renderStructureList(data)
+    
+    setStatus("Analysis complete.", "success")
+    
+    // Enable Exports
+    exportJsonButton.disabled = false
+    exportCsvButton.disabled = false
+    
+    // Switch to Words tab automatically to show results
+    document.querySelector('[data-tab="words"]').click()
+
+  } catch (err) {
+    console.error(err)
+    setStatus(err.message, "error")
+  } finally {
+    submitButton.disabled = false
+  }
+})
+
+loadSampleButton.addEventListener("click", () => {
+  // Use fetch to get the file, or just hardcode for simplicity. 
+  // Since we created sample_text.txt in root, we can try fetching it if we expose it via express static.
+  // Server.js exposes "public", but sample_text.txt is in root.
+  // We should move sample_text.txt to public or just hardcode it here.
+  // Let's hardcode it to ensure it works without server config changes.
+  
+  const sampleText = `The importance of writing clear text cannot be overstated. The importance of writing clear text is huge. Writing clear text is very important for communication.
+
+Basically, we want to avoid repetition. Basically, repetition is bad. In other words, we should vary our vocabulary. In other words, use different words.
+
+This is an example of a very long sentence that wanders around the point without ever really getting to it, adding clause after clause of unnecessary detail and filler words that serve no purpose other than to inflate the word count and confuse the reader, which is exactly what we are trying to avoid in good writing.
+
+However, sometimes we make mistakes. However, we can correct them. Therefore, we use tools. Therefore, we use analyzers.
+
+The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the active dog.`
+
+  editor.innerText = sampleText
+  updateStats(sampleText)
+  setStatus("Sample text loaded. Click 'Analyze Text' to see results.", "success")
+})
+
+// --- Editor Interaction ---
+
+editor.addEventListener("input", () => {
+  // If user types, we should clear highlights to avoid messing up HTML
+  if (isHighlighting) {
+    // This is tricky: contenteditable with <mark> tags behaves weirdly.
+    // Ideally we strip tags.
+    // For now, let's just update stats.
+  }
+  updateStats(editor.innerText)
+})
+
+editor.addEventListener("click", () => {
+    // If user clicks inside to edit, maybe clear highlights?
+    // Let's leave them for now unless they type.
+})
+
+// --- Exports ---
+// (Reuse existing export logic or simplify)
 function downloadFile(filename, content, type) {
   const blob = new Blob([content], { type })
   const url = URL.createObjectURL(blob)
@@ -221,72 +328,18 @@ function downloadFile(filename, content, type) {
   URL.revokeObjectURL(url)
 }
 
-function setExportState(enabled) {
-  exportJsonButton.disabled = !enabled
-  exportCsvButton.disabled = !enabled
-}
-
-function buildFilename(suffix) {
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)
-  return `analysis-${stamp}.${suffix}`
-}
-
 exportJsonButton.addEventListener("click", () => {
-  if (!latestAnalysis) return
-  downloadFile(buildFilename("json"), JSON.stringify(latestAnalysis, null, 2), "application/json")
+  if (!currentAnalysis) return
+  downloadFile("analysis.json", JSON.stringify(currentAnalysis, null, 2), "application/json")
 })
 
 exportCsvButton.addEventListener("click", () => {
-  if (!latestAnalysis) return
-  downloadFile(buildFilename("csv"), buildCsv(latestAnalysis), "text/csv")
+  // Simple CSV export for repeated words only for now
+  if (!currentAnalysis) return
+  const lines = ["Type,Value,Count"]
+  currentAnalysis.repeatedWords.forEach(w => lines.push(`Word,"${w.value}",${w.count}`))
+  downloadFile("analysis.csv", lines.join("\n"), "text/csv")
 })
 
-form.addEventListener("submit", async (event) => {
-  event.preventDefault()
-  setStatus("Analyzing text...", "info")
-  submitButton.disabled = true
-  setExportState(false)
-
-  const formData = new FormData(form)
-  form.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
-    formData.set(checkbox.name, checkbox.checked ? "true" : "false")
-  })
-
-  if (!formData.get("file")?.name && !formData.get("text")) {
-    setStatus("Please upload a document or paste text.", "error")
-    submitButton.disabled = false
-    return
-  }
-
-  try {
-    const response = await fetch("/api/analyze", {
-      method: "POST",
-      body: formData
-    })
-    const payload = await response.json()
-    if (!response.ok) {
-      setStatus(payload.error || "Failed to analyze text.", "error")
-      submitButton.disabled = false
-      return
-    }
-
-    updateSummary(payload.totals)
-    latestAnalysis = payload
-    
-    // Render Visualizations
-    renderWordCloud(payload.repeatedWords)
-    renderFrequencyList(phraseList, payload.repeatedPhrases, "No repeated phrases found.", true)
-    renderKeyValueList(starterList, payload.repeatedStarters, "No repeated starters found.")
-    renderLongSentences(longSentences, payload.longSentences, "No long sentences flagged.")
-    renderSimilarSentences(similarSentences, payload.similarSentences, "No similar sentences found.")
-    renderKeyValueList(focusCounts, payload.customCounts, "No focus words provided.")
-
-    setExportState(true)
-    setStatus("Analysis complete.", "success")
-  } catch (error) {
-    console.error(error)
-    setStatus("Failed to analyze text.", "error")
-  } finally {
-    submitButton.disabled = false
-  }
-})
+// Init
+updateStats(editor.innerText)

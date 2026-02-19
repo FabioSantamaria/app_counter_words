@@ -180,6 +180,7 @@ function analyzeText(text, options) {
   }
 
   return {
+    text: normalized,
     totals: {
       totalWords,
       uniqueWords,
