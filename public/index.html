@@ -10,109 +10,184 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="app-container">
-    <!-- Main Document Area -->
-    <main class="document-area">
-      <div class="toolbar">
+  
+  <!-- PAGE 1: INPUT VIEW -->
+  <div id="view-input" class="view-container active">
+    <div class="input-wrapper">
+      <header class="input-header">
         <h1>Text Analyzer <span class="badge">Pro</span></h1>
-        <div class="doc-stats" id="docStats">
-          <span>0 words</span>
-          <span>0 sentences</span>
-          <span>0 characters</span>
-        </div>
-      </div>
-      <div id="editorContainer" class="editor-container">
-        <div id="textDisplay" class="paper-view" contenteditable="true" spellcheck="false" placeholder="Paste your text here or upload a file..."></div>
-      </div>
-    </main>
+        <p>Advanced repetition and structure analysis for professional writers.</p>
+      </header>
 
-    <!-- Analysis Sidebar -->
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <div class="tabs">
-          <button class="tab-btn active" data-tab="input">Input</button>
-          <button class="tab-btn" data-tab="words">Words</button>
-          <button class="tab-btn" data-tab="sentences">Sentences</button>
-        </div>
-      </div>
-
-      <div class="sidebar-content">
-        <!-- Input Tab -->
-        <div id="tab-input" class="tab-pane active">
-          <form id="analyzeForm">
-            <div class="form-group">
-              <label for="file">Upload Document (DOCX/TXT)</label>
+      <form id="analyzeForm">
+        <div class="card input-card">
+          <div class="form-section">
+            <label class="section-label">1. Upload or Paste Text</label>
+            <div class="file-upload-box">
               <input type="file" id="file" name="file" accept=".txt,.md,.docx" />
+              <span class="file-hint">Supported: .docx, .txt, .md</span>
             </div>
-
             <div class="divider"><span>OR</span></div>
+            <textarea id="textInput" name="text" class="text-input-area" placeholder="Paste your text here..." spellcheck="false"></textarea>
+            <button type="button" id="loadSample" class="btn-link">Load Sample Text</button>
+          </div>
 
-            <div class="form-group">
-              <p class="help-text">Paste text directly into the editor on the left.</p>
-              <button type="button" id="loadSample" class="btn-link">Load Sample Text</button>
+          <div class="form-section">
+            <div class="analysis-controls">
+              <div class="control-group">
+                <label class="toggle-switch">
+                  <input type="checkbox" name="excludeCommon" checked />
+                  <span class="toggle-slider"></span>
+                  <span class="toggle-label">Exclude Common Words (Stopwords)</span>
+                </label>
+              </div>
+              
+              <div class="control-group expanded">
+                 <input type="text" name="customWords" class="input-line" placeholder="Focus words (optional, comma separated)..." />
+              </div>
             </div>
+          </div>
 
-            <div class="options-group">
-              <h3>Analysis Options</h3>
-              <label class="checkbox-label">
-                <input type="checkbox" name="repeatedWords" checked />
-                <span>Repeated Words</span>
-              </label>
-              <label class="checkbox-label">
-                <input type="checkbox" name="repeatedPhrases" checked />
-                <span>Repeated Phrases</span>
-              </label>
-              <label class="checkbox-label">
-                <input type="checkbox" name="excludeCommon" checked />
-                <span>Exclude Stopwords</span>
-              </label>
-              <label class="checkbox-label">
-                <input type="checkbox" name="similarSentences" checked />
-                <span>Similar Sentences</span>
-              </label>
-              <label class="checkbox-label">
-                <input type="checkbox" name="repeatedStarters" checked />
-                <span>Repeated Starters</span>
-              </label>
-            </div>
-
-            <div class="form-group">
-              <label for="customWords">Focus Words (comma separated)</label>
-              <input type="text" id="customWords" name="customWords" placeholder="e.g. however, therefore" />
-            </div>
-
-            <button type="submit" class="btn-primary">Analyze Text</button>
+          <div class="form-actions">
+            <button type="submit" class="btn-primary btn-large">Analyze Text</button>
             <div id="status" class="status-message"></div>
-          </form>
-          
-          <div class="export-actions">
-            <button id="exportJson" class="btn-secondary" disabled>Export JSON</button>
-            <button id="exportCsv" class="btn-secondary" disabled>Export CSV</button>
           </div>
         </div>
+      </form>
+    </div>
+  </div>
 
-        <!-- Words Tab -->
-        <div id="tab-words" class="tab-pane">
-          <div class="section-header">
-            <h3>Frequency</h3>
-            <span class="pill" id="uniqueWordsCount">0 unique</span>
-          </div>
-          <div class="list-container" id="freqList">
-            <div class="empty">Run analysis to see data.</div>
-          </div>
+  <!-- PAGE 2: RESULTS VIEW -->
+  <div id="view-results" class="view-container">
+    <div class="results-layout">
+      <!-- Sidebar Navigation -->
+      <aside class="results-sidebar">
+        <div class="sidebar-brand">
+          <h2>Results</h2>
+          <button id="backToInput" class="btn-text">← New Analysis</button>
         </div>
+        
+        <nav class="nav-menu">
+          <button class="nav-item active" data-target="tab-overview">Overview</button>
+          <button class="nav-item" data-target="tab-words">Repeated Words</button>
+          <button class="nav-item" data-target="tab-phrases">Repeated Phrases</button>
+          <button class="nav-item" data-target="tab-starters">Repeated Starters</button>
+          <button class="nav-item" data-target="tab-sentences">Repeated Sentences</button>
+          <button class="nav-item" data-target="tab-similar">Similar Sentences</button>
+        </nav>
 
-        <!-- Sentences Tab -->
-        <div id="tab-sentences" class="tab-pane">
-          <div class="section-block">
-            <h3>Structure Issues</h3>
-            <div class="list-container" id="structureList">
-              <div class="empty">Run analysis to see data.</div>
+        <div class="sidebar-footer">
+           <button id="exportJson" class="btn-secondary btn-sm">Export JSON</button>
+           <button id="exportCsv" class="btn-secondary btn-sm">Export CSV</button>
+        </div>
+      </aside>
+
+      <!-- Main Content Area -->
+      <main class="results-content">
+        
+        <!-- Tab: Overview -->
+        <div id="tab-overview" class="tab-content active">
+          <div class="header-row">
+            <h2>Overview Statistics</h2>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span class="stat-label">Total Words</span>
+              <span class="stat-value" id="stat-words">0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Unique Words</span>
+              <span class="stat-value" id="stat-unique">0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Sentences</span>
+              <span class="stat-value" id="stat-sentences">0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Lexical Diversity</span>
+              <span class="stat-value" id="stat-diversity">0</span>
             </div>
           </div>
+          
+          <div class="overview-charts">
+             <div class="chart-box">
+               <h3>Top Repeated Words</h3>
+               <div id="overview-words-list" class="mini-list"></div>
+             </div>
+             <div class="chart-box">
+               <h3>Long Sentences (>20 words)</h3>
+               <div id="overview-long-list" class="mini-list"></div>
+             </div>
+          </div>
         </div>
-      </div>
-    </aside>
+
+        <!-- Tab: Repeated Words -->
+        <div id="tab-words" class="tab-content">
+          <div class="header-row">
+            <h2>Repeated Words</h2>
+            <span class="subtitle">Most frequent individual words</span>
+          </div>
+          <div class="table-container">
+            <table class="data-table" id="table-words">
+              <thead><tr><th>Word</th><th>Count</th><th class="bar-col">Frequency</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab: Repeated Phrases -->
+        <div id="tab-phrases" class="tab-content">
+          <div class="header-row">
+            <h2>Repeated Phrases</h2>
+            <span class="subtitle">Frequent 3-4 word combinations</span>
+          </div>
+          <div class="table-container">
+            <table class="data-table" id="table-phrases">
+              <thead><tr><th>Phrase</th><th>Length</th><th>Count</th><th class="bar-col">Frequency</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab: Repeated Starters -->
+        <div id="tab-starters" class="tab-content">
+          <div class="header-row">
+            <h2>Repeated Starters</h2>
+            <span class="subtitle">Sentences starting with the same 2-3 words</span>
+          </div>
+          <div class="table-container">
+            <table class="data-table" id="table-starters">
+              <thead><tr><th>Starter</th><th>Count</th><th class="bar-col">Frequency</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab: Repeated Sentences -->
+        <div id="tab-sentences" class="tab-content">
+          <div class="header-row">
+            <h2>Repeated Sentences</h2>
+            <span class="subtitle">Exact duplicate sentences found in the text</span>
+          </div>
+          <div class="table-container">
+            <table class="data-table" id="table-sentences">
+              <thead><tr><th>Sentence</th><th>Count</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab: Similar Sentences -->
+        <div id="tab-similar" class="tab-content">
+          <div class="header-row">
+            <h2>Similar Sentences</h2>
+            <span class="subtitle">Sentences with high structural similarity</span>
+          </div>
+          <div id="similar-list" class="cards-list"></div>
+        </div>
+
+      </main>
+    </div>
   </div>
 
   <script src="app.js"></script>

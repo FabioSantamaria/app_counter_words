@@ -121,7 +121,7 @@ function analyzeText(text, options) {
     const phraseWords = excludeCommon ? words.filter((word) => !stopwords.has(word)) : words
     for (const n of grams) {
       const freq = ngramFrequency(phraseWords, n)
-      const top = topEntries(freq, 2, 10).map((entry) => ({
+      const top = topEntries(freq, 2, 20).map((entry) => ({
         ...entry,
         n
       }))
@@ -132,6 +132,7 @@ function analyzeText(text, options) {
   let similarSentences = []
   let repeatedStarters = []
   let longSentences = []
+  let repeatedSentences = []
   const sentences = splitSentences(normalized)
 
   if (sentences.length) {
@@ -143,6 +144,15 @@ function analyzeText(text, options) {
       .map((sentence, idx) => ({ sentence, words: sentenceWordCounts[idx] }))
       .filter((s) => s.words >= avg + std && s.words >= 20)
       .slice(0, 10)
+      
+    // Exact Repeated Sentences Logic
+    const sentenceMap = new Map()
+    for (const s of sentences) {
+       const trimmed = s.trim()
+       if (!trimmed) continue
+       sentenceMap.set(trimmed, (sentenceMap.get(trimmed) || 0) + 1)
+    }
+    repeatedSentences = topEntries(sentenceMap, 2, 20)
   }
 
   if (options.similarSentences && sentences.length) {
@@ -151,6 +161,9 @@ function analyzeText(text, options) {
     const results = []
     for (let i = 0; i < sets.length; i++) {
       for (let j = i + 1; j < sets.length; j++) {
+        // Skip identical sentences (they are caught by repeatedSentences)
+        if (capped[i] === capped[j]) continue
+        
         const score = jaccard(sets[i], sets[j])
         if (score >= 0.75 && capped[i].length > 40 && capped[j].length > 40) {
           results.push({ sentenceA: capped[i], sentenceB: capped[j], score: Number(score.toFixed(2)) })
@@ -164,11 +177,31 @@ function analyzeText(text, options) {
     const starters = new Map()
     for (const sentence of sentences) {
       const wordsInSentence = tokenizeWords(sentence)
-      const starter = wordsInSentence.slice(0, 3).join(" ")
-      if (!starter) continue
-      starters.set(starter, (starters.get(starter) || 0) + 1)
+      // Check for both 2 and 3 word starters
+      const lengths = [2, 3]
+      
+      for (const len of lengths) {
+        if (wordsInSentence.length < len) continue
+        
+        // Handle stopword exclusion for starters if requested
+        // The prompt says "Maybe, an option to exclude stopwords might be useful here."
+        // We'll assume if options.excludeCommon is true, we check if the FIRST word is a stopword?
+        // Or if ANY word in the starter is a stopword? Usually starters like "However, we" contain stopwords.
+        // Let's filter out starters that are ONLY stopwords if excludeCommon is set.
+        
+        const slice = wordsInSentence.slice(0, len)
+        if (options.excludeCommon) {
+           // If all words in the starter are stopwords, skip it?
+           // Or maybe just ensure the starter isn't PURELY stopwords.
+           const allStops = slice.every(w => stopwords.has(w))
+           if (allStops) continue
+        }
+        
+        const starter = slice.join(" ")
+        starters.set(starter, (starters.get(starter) || 0) + 1)
+      }
     }
-    repeatedStarters = topEntries(starters, 2, 10)
+    repeatedStarters = topEntries(starters, 2, 20)
   }
 
   const customCounts = []
@@ -190,6 +223,7 @@ function analyzeText(text, options) {
     repeatedWords,
     repeatedPhrases: phraseResults,
     similarSentences,
+    repeatedSentences,
     repeatedStarters,
     longSentences,
     customCounts
